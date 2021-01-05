@@ -27,6 +27,18 @@ namespace NSMBe5.Patcher
 {
     public class PatchMaker
     {
+        public enum Branch : int
+        {
+            WITHOUT_BRANCH = 0,
+            WITH_BRANCH = 1
+        }
+
+        public enum Mode : int
+        {
+            ARM = 0,
+            THUMB = 1,
+        }
+
         private int ArenaLoOffs;
         Arm9BinaryHandler handler;
         DirectoryInfo romdir;
@@ -188,9 +200,9 @@ namespace NSMBe5.Patcher
                 #endregion
 
                 int ind = -1;
-                String[,] instructionNames = new String[2,5] {
-                    { "ansub", "ahook", "arepl", "trepl", "btrpl" }, //MKDS instructions
-                    { "nsub", "hook", "repl", "xrpl", "lrpl" } //NSMB equivalents
+                String[,] instructionNames = new String[2,6] {
+                    { "ansub", "ahook", "arepl", "trepl", "tnsub", "tjump" }, //MKDS instructions
+                    { "nsub", "hook", "repl", "xrpl", "lrpl", "tjmp" } //NSMB equivalents
                 };
 
 
@@ -222,29 +234,72 @@ namespace NSMBe5.Patcher
                     if (l.Contains("_ov_"))
                         ovId = parseHex(l.Substring(l.IndexOf("_ov_") + 4, 2));
 
+                    String retAddress;
+                    if (l.Contains("_retAddr_"))
+                    {
+                        startingIndex = l.IndexOf("_retAddr_") + 9;               
+                        isEightCharactersAddress = l[startingIndex] == '0';
+                        retAddress = l.Substring(startingIndex, isEightCharactersAddress ? 8 : 7);
+                        if (!isEightCharactersAddress) retAddress = "0" + retAddress;
+                    }
+                       
+
                     string cmd = l.Substring(ind, isFiveLetterInstruction ? 5 : 4 );
                     int thisHookAddr = 0;
 
-                    switch(cmd)
+                    UInt16 pushLR = 0xB500;
+                    UInt16 popPC = 0xBD00;
+
+                    switch (cmd)
                     {
                         case "ansub":
                         case "nsub":
-                            val = makeBranchOpcode(ramAddr, destRamAddr, 0);
+                            val = makeBranchOpcode(ramAddr, destRamAddr, Branch.WITHOUT_BRANCH);
                             break;
                         case "arepl":
                         case "repl":
-                            val = makeBranchOpcode(ramAddr, destRamAddr, 1);
+                            val = makeBranchOpcode(ramAddr, destRamAddr, Branch.WITH_BRANCH);
                             break;
                         case "trepl":
                         case "xrpl":
-                            val = makeBranchOpcode(ramAddr, destRamAddr, 2);
+                            val = makeBranchOpcode(ramAddr, destRamAddr, Branch.WITH_BRANCH, Mode.THUMB);
                             break;
-                        case "btrpl":
+                        case "tnsub":
                         case "lrpl":
-                            UInt16 lrvalue = 0xB500; //push {r14}
-                            handler.writeToRamAddr(ramAddr, lrvalue, ovId);
+                            /*https://www.ece.uvic.ca/~ece255/lab/docs/ARM7-TDMI-manual-pt3.pdf
+                                Opcodes for Thumb Push and Pop
+                                The goal of this instruction is to push LR/PC before
+                                it gets overwritten, then run a custom instruction with a BLX (?)
+                                and at the end of it return to the original position.
+                                This is essentially an 8-byte tnsub with some extra tinkering around
+
+                                PUSH {R14 (LR/PC))}
+                                BLX label
+                                POP {R14 (LR/PC)}
+
+                            */
+                            handler.writeToRamAddr(ramAddr, pushLR, ovId);
                             ramAddr += 2;
-                            val = makeBranchOpcode(ramAddr, destRamAddr, 2);
+                            handler.writeToRamAddr(ramAddr, makeBranchOpcode(ramAddr, destRamAddr, Branch.WITH_BRANCH, Mode.THUMB), ovId);
+                            ramAddr += 4;
+                            val = popPC;
+                            break;
+                        case "tjump":
+                        case "tjmp":
+                            /*https://www.ece.uvic.ca/~ece255/lab/docs/ARM7-TDMI-manual-pt3.pdf
+                               If you need to jump to an address and return somewhere else,
+                               it makes sure it sets r14 to what it used to be at an address
+                               ModifyAddress -> PUSH {R14}
+                                                BL label
+                                                ...
+                                                POP {R14}
+                               ReturnAddress -> what used to be here
+
+                           */
+                            handler.writeToRamAddr(ramAddr, pushLR, ovId);
+                            ramAddr += 2;
+                            handler.writeToRamAddr(ramAddr, makeBranchOpcode(ramAddr, destRamAddr, Branch.WITH_BRANCH, Mode.THUMB), ovId);
+                            val = makeBranchOpcode(ramAddr, destRamAddr, Branch.WITHOUT_BRANCH, Mode.THUMB);
                             break;
                         case "ahook":
                         case "hook":
@@ -260,11 +315,11 @@ namespace NSMBe5.Patcher
                             hookAddr += 4;
                             extradata.writeUInt(0xE92D5FFF); //push {r0-r12, r14}
                             hookAddr += 4;
-                            extradata.writeUInt(makeBranchOpcode(hookAddr, destRamAddr, 1));
+                            extradata.writeUInt(makeBranchOpcode(hookAddr, destRamAddr, Branch.WITH_BRANCH));
                             hookAddr += 4;
                             extradata.writeUInt(0xE8BD5FFF); //pop {r0-r12, r14}
                             hookAddr += 4;
-                            extradata.writeUInt(makeBranchOpcode(hookAddr, ramAddr+4, 0));
+                            extradata.writeUInt(makeBranchOpcode(hookAddr, ramAddr+4, Branch.WITHOUT_BRANCH));
                             hookAddr += 4;
                             extradata.writeUInt(0x12345678);
                             hookAddr += 4;
@@ -305,11 +360,11 @@ namespace NSMBe5.Patcher
                                 int num1 = hookAddr + 4;
                                 extradata.writeUInt(3912065023U);
                                 int srcAddr1 = num1 + 4;
-                                extradata.writeUInt(PatchMaker.makeBranchOpcode(srcAddr1, hex1, 1));
+                                extradata.writeUInt(PatchMaker.makeBranchOpcode(srcAddr1, hex1, Branch.WITH_BRANCH));
                                 int num2 = srcAddr1 + 4;
                                 extradata.writeUInt(3904724991U);
                                 int srcAddr2 = num2 + 4;
-                                extradata.writeUInt(PatchMaker.makeBranchOpcode(srcAddr2, hex2 + 4, 0));
+                                extradata.writeUInt(PatchMaker.makeBranchOpcode(srcAddr2, hex2 + 4, Branch.WITHOUT_BRANCH));
                                 int num3 = srcAddr2 + 4;
                                 extradata.writeUInt(305419896U);
                                 hookAddr = num3 + 4;
@@ -318,7 +373,7 @@ namespace NSMBe5.Patcher
                                 continue;
                         }
                         else
-                            val = PatchMaker.makeBranchOpcode(hex2, hex1, 1);
+                            val = PatchMaker.makeBranchOpcode(hex2, hex1, Branch.WITH_BRANCH);
                     }
                     else
                         val = PatchMaker.makeBranchOpcode(hex2, hex1, 0);
@@ -571,26 +626,30 @@ namespace NSMBe5.Patcher
         }
 
 
-        public static uint makeBranchOpcode(int srcAddr, int destAddr, int withLink)
+        public static uint makeBranchOpcode(int srcAddr, int destAddr, Branch branch, Mode mode = Mode.ARM)
         {
             unchecked
             {
-                uint res = (uint)0xEA000000;
-
-                if (withLink == 1)
-                    res |= 0x01000000;
-
-                int offs = (destAddr / 4) - (srcAddr / 4) - 2;
-                offs &= 0x00FFFFFF;
-
-                res |= (uint)offs;
-
-                if (withLink == 2)
+                uint res;
+                if (mode == Mode.ARM)
                 {
+                    /* ARM */
+                    res = (uint)0xEA000000;
+
+                    if (branch == Branch.WITH_BRANCH)
+                        res |= 0x01000000;
+
+                    int offs = (destAddr / 4) - (srcAddr / 4) - 2;
+                    offs &= 0x00FFFFFF;
+
+                    res |= (uint)offs;
+                } else 
+                {
+                    /* Thumb has to jump with a branch */
                     UInt16 res1 = 0xF000;
                     UInt16 res2 = 0xE800;
-                    
-                    offs = destAddr - srcAddr - 2;
+
+                    int offs = destAddr - srcAddr - 2;
                     offs >>= 2;
                     offs &= 0x003FFFFF;
                     
@@ -598,9 +657,7 @@ namespace NSMBe5.Patcher
                     res2 |= (UInt16)((offs << 1)  & 0x7FF);
 
                     res = (uint)(((uint)res2 << 16) | res1);
-
                 }
-
                 return res;
             }
         }

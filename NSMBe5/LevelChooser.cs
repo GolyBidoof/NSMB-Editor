@@ -104,8 +104,8 @@ namespace NSMBe5 {
             }
 
 
-            this.Text = "NSMB Editor 5.3.2 - " + ROM.filename;
-            label3.Text = "NSMB Editor 5.3.2 " + Properties.Resources.version.Trim();
+            this.Text = "NSMB Editor 5.3.3 - " + ROM.filename;
+            label3.Text = "NSMB Editor 5.3.3 " + Properties.Resources.version.Trim();
             this.Icon = Properties.Resources.nsmbe;
 
             if (!ROM.isNSMBRom)
