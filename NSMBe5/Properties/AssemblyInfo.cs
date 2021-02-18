@@ -5,12 +5,12 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("NSMB Editor 5.3.3")]
+[assembly: AssemblyTitle("NSMB Editor 5.3.4")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("")]
-[assembly: AssemblyCopyright("Copyright © Treeki and Dirbaio 2019, further maintained by TheGameratorT, Szymbar 2020")]
+[assembly: AssemblyCopyright("Copyright © Treeki and Dirbaio 2019, further maintained by TheGameratorT, Szymbar 2020/2021")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -32,5 +32,5 @@ using System.Runtime.InteropServices;
 // You can specify all the values or you can default the Build and Revision Numbers 
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("5.3.3.0")]
-[assembly: AssemblyFileVersion("5.3.3.0")]
+[assembly: AssemblyVersion("5.3.4.0")]
+[assembly: AssemblyFileVersion("5.3.4.0")]

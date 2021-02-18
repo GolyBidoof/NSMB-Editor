@@ -200,9 +200,9 @@ namespace NSMBe5.Patcher
                 #endregion
 
                 int ind = -1;
-                String[,] instructionNames = new String[2,6] {
-                    { "ansub", "ahook", "arepl", "trepl", "tnsub", "tjump" }, //MKDS instructions
-                    { "nsub", "hook", "repl", "xrpl", "lrpl", "tjmp" } //NSMB equivalents
+                String[,] instructionNames = new String[2,5] {
+                    { "ansub", "ahook", "arepl", "trepl", "tnsub" }, //MKDS instructions
+                    { "nsub", "hook", "repl", "xrpl", "lrpl" } //NSMB equivalents
                 };
 
 
@@ -283,23 +283,6 @@ namespace NSMBe5.Patcher
                             handler.writeToRamAddr(ramAddr, makeBranchOpcode(ramAddr, destRamAddr, Branch.WITH_BRANCH, Mode.THUMB), ovId);
                             ramAddr += 4;
                             val = popPC;
-                            break;
-                        case "tjump":
-                        case "tjmp":
-                            /*https://www.ece.uvic.ca/~ece255/lab/docs/ARM7-TDMI-manual-pt3.pdf
-                               If you need to jump to an address and return somewhere else,
-                               it makes sure it sets r14 to what it used to be at an address
-                               ModifyAddress -> PUSH {R14}
-                                                BL label
-                                                ...
-                                                POP {R14}
-                               ReturnAddress -> what used to be here
-
-                           */
-                            handler.writeToRamAddr(ramAddr, pushLR, ovId);
-                            ramAddr += 2;
-                            handler.writeToRamAddr(ramAddr, makeBranchOpcode(ramAddr, destRamAddr, Branch.WITH_BRANCH, Mode.THUMB), ovId);
-                            val = makeBranchOpcode(ramAddr, destRamAddr, Branch.WITHOUT_BRANCH, Mode.THUMB);
                             break;
                         case "ahook":
                         case "hook":

@@ -123,12 +123,12 @@
   <data name="lblCredits.Text" xml:space="preserve">
     <value>Treeki - Original Developer
 Dirbaio - Second Developer
-TheGameratorT - Current Developer
+TheGameratorT - Current Developer, maintainer
+Szymbar - Current Developer, maintainer
 Piranhaplant - Developer
 MeroMero - Developer
 RicBent - Developer
-TheGameratorT - Developer, maintainer
-Szymbar - Developer, adopted the structure to work with MKDS assembly
+
 And everyone else who's helped us make the editor and community awesome!</value>
   </data>
   <metadata name="importLevelDialog.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
